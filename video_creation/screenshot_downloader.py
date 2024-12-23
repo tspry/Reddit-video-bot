@@ -96,51 +96,12 @@ def get_screenshots_of_reddit_posts(reddit_object: dict, screenshot_num: int):
             device_scale_factor=dsf,
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
         )
-        cookies = json.load(cookie_file)
-        cookie_file.close()
 
-        context.add_cookies(cookies)  # load preference cookies
 
         # Login to Reddit
         print_substep("Logging in to Reddit...")
         page = context.new_page()
-        page.goto("https://www.reddit.com/login", timeout=0)
-        page.set_viewport_size(ViewportSize(width=1920, height=1080))
-        page.wait_for_load_state()
-
-        page.locator('input[name="username"]').fill(
-            settings.config["reddit"]["creds"]["username"]
-        )
-        page.locator('input[name="password"]').fill(
-            settings.config["reddit"]["creds"]["password"]
-        )
-        page.get_by_role("button", name="Log In").click()
-        page.wait_for_timeout(5000)
-
-        login_error_div = page.locator(".AnimatedForm__errorMessage").first
-        if login_error_div.is_visible():
-            login_error_message = login_error_div.inner_text()
-            if login_error_message.strip() == "":
-                # The div element is empty, no error
-                pass
-            else:
-                # The div contains an error message
-                print_substep(
-                    "Your reddit credentials are incorrect! Please modify them accordingly in the config.toml file.",
-                    style="red",
-                )
-                exit()
-        else:
-            pass
-
-        page.wait_for_load_state()
-        # Handle the redesign
-        # Check if the redesign optout cookie is set
-        if page.locator("#redesign-beta-optin-btn").is_visible():
-            # Clear the redesign optout cookie
-            clear_cookie_by_name(context, "redesign_optout")
-            # Reload the page for the redesign to take effect
-            page.reload()
+        
         # Get the thread screenshot
         page.goto(
             reddit_object["thread_url"],
