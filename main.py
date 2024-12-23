@@ -14,7 +14,6 @@ from utils.cleanup import cleanup
 from utils.console import print_markdown, print_step, print_substep
 from utils.ffmpeg_install import ffmpeg_install
 from utils.id import id
-from utils.version import checkversion
 from video_creation.background import (
     chop_background,
     download_background_audio,
@@ -40,8 +39,6 @@ print(
 print_markdown(
     "### Thanks for using this tool! Feel free to contribute to this project on GitHub! If you have any questions, feel free to join my Discord server or submit a GitHub issue. You can find solutions to many common problems in the documentation: https://reddit-video-maker-bot.netlify.app/"
 )
-checkversion(__VERSION__)
-
 
 def main(POST_ID=None) -> None:
     global redditid, reddit_object
@@ -79,11 +76,6 @@ def shutdown() -> NoReturn:
 
 
 if __name__ == "__main__":
-    # if sys.version_info.major != 3 or sys.version_info.minor not in [10, 11]:
-    #     print(
-    #         "Hey! Congratulations, you've made it so far (which is pretty rare with no Python 3.10). Unfortunately, this program only works on Python 3.10. Please install Python 3.10 and try again."
-    #     )
-    #     sys.exit()
     ffmpeg_install()
     directory = Path().absolute()
     config = settings.check_toml(

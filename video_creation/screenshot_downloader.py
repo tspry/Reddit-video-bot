@@ -262,6 +262,10 @@ def get_screenshots_of_reddit_posts(reddit_object: dict, screenshot_num: int):
                         location = page.locator(
                             f"#t1_{comment['comment_id']}-comment-rtjson-content"
                         ).bounding_box()
+
+                        # add padding,width,height to the bounding box to include surrounding content
+                        location = modify_bounding_box(location, padding=50, xwidth=2, xheight=4)
+                        
                         for i in location:
                             location[i] = float("{:.2f}".format(location[i] * zoom))
                         page.screenshot(
@@ -284,3 +288,14 @@ def get_screenshots_of_reddit_posts(reddit_object: dict, screenshot_num: int):
         browser.close()
 
     print_substep("Screenshots downloaded Successfully.", style="bold green")
+
+
+def modify_bounding_box(bounding_box,padding=50,xwidth=2,xheight=4):
+            # Add some padding to the bounding box to include surrounding content
+        screenshot_region = {
+            'x':bounding_box['x'] - padding,
+            'y':bounding_box['y'] - padding,
+            'width':bounding_box['width'] + (xwidth * padding),
+            'height':bounding_box['height'] + (xheight * padding)
+        }
+        return screenshot_region
