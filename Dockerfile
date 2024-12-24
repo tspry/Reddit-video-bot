@@ -1,4 +1,5 @@
 FROM python:3.10.14-slim
+LABEL org.opencontainers.image.source="https://github.com/${GITHUB_USERNAME}/${GITHUB_REPO}"
 
 RUN apt update
 RUN apt-get install -y ffmpeg
