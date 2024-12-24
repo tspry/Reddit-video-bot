@@ -75,6 +75,57 @@ def shutdown() -> NoReturn:
     sys.exit()
 
 
+# SO THAT THE SCRIPT CAN ALSO BE RUN FROM THE ENDPOINT
+def gen():
+    ffmpeg_install()
+    directory = Path().absolute()
+    config = settings.check_toml(
+        f"{directory}/utils/.config.template.toml", f"{directory}/config.toml"
+    )
+    config is False and sys.exit()
+
+    if (
+        not settings.config["settings"]["tts"]["tiktok_sessionid"]
+        or settings.config["settings"]["tts"]["tiktok_sessionid"] == ""
+    ) and config["settings"]["tts"]["voice_choice"] == "tiktok":
+        print_substep(
+            "TikTok voice requires a sessionid! Check our documentation on how to obtain one.",
+            "bold red",
+        )
+        sys.exit()
+    try:
+        if config["reddit"]["thread"]["post_id"]:
+            for index, post_id in enumerate(
+                config["reddit"]["thread"]["post_id"].split("+")
+            ):
+                index += 1
+                print_step(
+                    f'on the {index}{("st" if index % 10 == 1 else ("nd" if index % 10 == 2 else ("rd" if index % 10 == 3 else "th")))} post of {len(config["reddit"]["thread"]["post_id"].split("+"))}'
+                )
+                main(post_id)
+                Popen("cls" if name == "nt" else "clear", shell=True).wait()
+        elif config["settings"]["times_to_run"]:
+            run_many(config["settings"]["times_to_run"])
+        else:
+            main()
+    except KeyboardInterrupt:
+        shutdown()
+    except ResponseException:
+        print_markdown("## Invalid credentials")
+        print_markdown("Please check your credentials in the config.toml file")
+        shutdown()
+    except Exception as err:
+        config["settings"]["tts"]["tiktok_sessionid"] = "REDACTED"
+        config["settings"]["tts"]["elevenlabs_api_key"] = "REDACTED"
+        print_step(
+            f"Sorry, something went wrong with this version! Try again, and feel free to report this issue at GitHub or the Discord community.\n"
+            f"Version: {__VERSION__} \n"
+            f"Error: {err} \n"
+            f'Config: {config["settings"]}'
+        )
+        raise err
+
+
 if __name__ == "__main__":
     ffmpeg_install()
     directory = Path().absolute()
