@@ -1,3 +1,4 @@
+import threading
 import webbrowser
 from pathlib import Path
 
@@ -5,8 +6,10 @@ from pathlib import Path
 import tomlkit
 from flask import (
     Flask,
+    jsonify,
     redirect,
     render_template,
+    render_template_string,
     request,
     send_from_directory,
     url_for,
@@ -114,8 +117,53 @@ def voices(name):
 
 @app.route("/run", methods=["GET", "POST"])
 def run():
-    gen()
-    return "OKAY GENERATING"
+    global task_done
+    task_done = False
+
+    threading.Thread(target=background_task).start()
+
+    return render_template_string(
+        """
+        <h1>OKAY GENERATING...</h1>
+        <p>Generation in progress...</p>
+        <script>
+            function checkStatus() {
+                fetch("/check_status")
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.task_done) {
+                            window.location.href = "/status";
+                        }
+                    });
+            }
+            setInterval(checkStatus, 10000);
+        </script>
+    """
+    )
+
+
+def background_task():
+    global task_done
+    try:
+        gen()
+        task_done = True
+    except Exception:
+        task_done = False
+
+
+@app.route("/check_status")
+def check_status():
+    # Return the task status as a JSON response
+    return jsonify({"task_done": task_done})
+
+
+@app.route("/status")
+def status():
+    # This will show a message after the task is completed
+    if task_done:
+        return render_template_string("<h1>Task Completed!</h1>")
+    else:
+        return render_template_string("<h1>Task Failed!</h1>")
 
 
 # Run browser and start the app
