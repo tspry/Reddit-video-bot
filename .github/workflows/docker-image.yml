@@ -1,4 +1,4 @@
-name: Docker Image CI
+name: Docker Image CI hai
 
 on:
   push:
@@ -7,21 +7,36 @@ on:
     branches: [ "main" ]
 
 jobs:
-
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-      
-    # Log in to Docker Hub
-    - name: Log in to Docker Hub
-      run: echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login --username "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
-    
-    # Build the Docker image
-    - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
-    
-    # Tag the Docker image
-    - name: Tag the Docker image
-      run: docker tag my-image-name:$(date +%s) ${{ 
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Log in to GitHub Container Registry (GHCR)
+      run: |
+        docker login --username ${{ github.actor }}  --password ${{ secrets.TOKEN_GITHUB }} ghcr.io
+
+    - name: Build Docker Image
+      run: |
+        # Build the Docker image and tag it with the Git commit SHA and 'latest'
+        docker build -t ghcr.io/${{ github.repository_owner }}/redditvideobot:${{ github.sha }} .
+        docker build -t ghcr.io/${{ github.repository_owner }}/redditvideobot:latest .
+
+    - name: Push Docker Image to GHCR
+      run: |
+        # Push the Docker image to GitHub Container Registry
+        docker push ghcr.io/${{ github.repository_owner }}/redditvideobot:${{ github.sha }}
+        docker push ghcr.io/${{ github.repository_owner }}/redditvideobot:latest
+
+    - name: Create GitHub Release (Optional)
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        curl -X POST \
+          -H "Authorization: token ${{ secrets.TOKEN_GITHUB }}" \
+          -d "{\"tag_name\":\"${{ github.ref }}\",\"name\":\"Release ${{ github.ref }}\",\"body\":\"Release of Docker image for ${{ github.ref }}\",\"draft\":false,\"prerelease\":false}" \
+          https://api.github.com/repos/${{ github.repository }}/releases
