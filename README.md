@@ -1,4 +1,4 @@
-**This is a personal version of Original [RedditVideoMakerBot](https://github.com/elebumm/RedditVideoMakerBot), created to enhance its functionality, improve performance, fix few bugs and sprinkle some personal flavours**
+**This is a personal version of Original [RedditVideoMakerBot](https://github.com/elebumm/RedditVideoMakerBot), created to enhance its functionality, improve performance, fix few bugs and sprinkle some personal flavours.**
 
 ## Installation 👩‍💻
 
