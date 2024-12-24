@@ -248,4 +248,4 @@ config.toml
 *.exe
 
 
-*.toml
+config.toml

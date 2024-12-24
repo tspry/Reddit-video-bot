@@ -82,7 +82,7 @@ def get_screenshots_of_reddit_posts(reddit_object: dict, screenshot_num: int):
         print_substep("Launching Headless Browser...")
 
         browser = p.chromium.launch(
-            headless=False
+            headless=True
         )  # headless=False will show the browser for debugging purposes
         # Device scale factor (or dsf for short) allows us to increase the resolution of the screenshots
         # When the dsf is 1, the width of the screenshot is 600 pixels
@@ -99,48 +99,52 @@ def get_screenshots_of_reddit_posts(reddit_object: dict, screenshot_num: int):
         cookies = json.load(cookie_file)
         cookie_file.close()
 
-        context.add_cookies(cookies)  # load preference cookies
+        context.add_cookies(cookies)
 
         # Login to Reddit
         print_substep("Logging in to Reddit...")
-        page = context.new_page()
-        page.goto("https://www.reddit.com/login", timeout=0)
-        page.set_viewport_size(ViewportSize(width=1920, height=1080))
-        page.wait_for_load_state()
-
-        page.locator('input[name="username"]').fill(
-            settings.config["reddit"]["creds"]["username"]
-        )
-        page.locator('input[name="password"]').fill(
-            settings.config["reddit"]["creds"]["password"]
-        )
-        page.get_by_role("button", name="Log In").click()
-        page.wait_for_timeout(5000)
-
-        login_error_div = page.locator(".AnimatedForm__errorMessage").first
-        if login_error_div.is_visible():
-            login_error_message = login_error_div.inner_text()
-            if login_error_message.strip() == "":
-                # The div element is empty, no error
-                pass
-            else:
-                # The div contains an error message
-                print_substep(
-                    "Your reddit credentials are incorrect! Please modify them accordingly in the config.toml file.",
-                    style="red",
-                )
-                exit()
+        if not settings.config["settings"]["allow_nsfw"]:
+            page = context.new_page()
         else:
-            pass
+            page = context.new_page()
+            page.goto("https://www.reddit.com/login", timeout=0)
+            page.set_viewport_size(ViewportSize(width=1920, height=1080))
+            page.wait_for_load_state()
 
-        page.wait_for_load_state()
-        # Handle the redesign
-        # Check if the redesign optout cookie is set
-        if page.locator("#redesign-beta-optin-btn").is_visible():
-            # Clear the redesign optout cookie
-            clear_cookie_by_name(context, "redesign_optout")
-            # Reload the page for the redesign to take effect
-            page.reload()
+            page.locator('input[name="username"]').fill(
+                settings.config["reddit"]["creds"]["username"]
+            )
+            page.locator('input[name="password"]').fill(
+                settings.config["reddit"]["creds"]["password"]
+            )
+            page.get_by_role("button", name="Log In").click()
+            page.wait_for_timeout(5000)
+
+            login_error_div = page.locator(".AnimatedForm__errorMessage").first
+            if login_error_div.is_visible():
+                login_error_message = login_error_div.inner_text()
+                if login_error_message.strip() == "":
+                    # The div element is empty, no error
+                    pass
+                else:
+                    # The div contains an error message
+                    print_substep(
+                        "Your reddit credentials are incorrect! Please modify them accordingly in the config.toml file.",
+                        style="red",
+                    )
+                    exit()
+            else:
+                pass
+
+            page.wait_for_load_state()
+            # Handle the redesign
+            # Check if the redesign optout cookie is set
+            if page.locator("#redesign-beta-optin-btn").is_visible():
+                # Clear the redesign optout cookie
+                clear_cookie_by_name(context, "redesign_optout")
+                # Reload the page for the redesign to take effect
+                page.reload()
+
         # Get the thread screenshot
         page.goto(
             reddit_object["thread_url"],
@@ -188,12 +192,12 @@ def get_screenshots_of_reddit_posts(reddit_object: dict, screenshot_num: int):
         postcontentpath = f"assets/temp/{reddit_id}/png/title.png"
         print_substep(f"dwa {postcontentpath}", style="red")
         try:
-            randi = page.locator(
+            postcontent = page.locator(
                 ".mb-xs.nd\\:pb-2xl.nd\\:visible.box-border.bg-\\[color\\:var\\(--shreddit-content-background\\)\\].nd\\:pt-xs.pt-xs.xs\\:rounded-\\[16px\\].xs\\:px-xs.xs\\:-mx-xs.xs\\:mt-xs.block"
             )
-            print_substep(f"randi {randi}", style="red")
-            randi.wait_for(state="visible")
-            randi.screenshot(path=postcontentpath, timeout=30000)
+            print_substep(f"Post content found at {postcontent}", style="red")
+            postcontent.wait_for(state="visible")
+            postcontent.screenshot(path=postcontentpath, timeout=30000)
 
         except Exception as e:
             print_substep(f"Something went wrong!{e}", style="red")
@@ -249,19 +253,27 @@ def get_screenshots_of_reddit_posts(reddit_object: dict, screenshot_num: int):
                         [comment_tl, comment["comment_id"]],
                     )
                 try:
+                    page.locator(
+                        f"#t1_{comment['comment_id']}-comment-rtjson-content"
+                    ).scroll_into_view_if_needed()
+                    # as zooming the body doesn't change the properties of the divs, we need to adjust for the zoom
+
+                    location = page.locator(
+                        f"#t1_{comment['comment_id']}-comment-rtjson-content"
+                    ).bounding_box()
+
+                    # add padding,width,height to the bounding box to include surrounding content
+                    location = modify_bounding_box(
+                        location, padding=45, xwidth=1.75, xheight=1.75
+                    )
+
                     if settings.config["settings"]["zoom"] != 1:
                         # store zoom settings
                         zoom = settings.config["settings"]["zoom"]
                         # zoom the body of the page
                         page.evaluate("document.body.style.zoom=" + str(zoom))
                         # scroll comment into view
-                        page.locator(
-                            f"#t1_{comment['comment_id']}-comment-rtjson-content"
-                        ).scroll_into_view_if_needed()
-                        # as zooming the body doesn't change the properties of the divs, we need to adjust for the zoom
-                        location = page.locator(
-                            f"#t1_{comment['comment_id']}-comment-rtjson-content"
-                        ).bounding_box()
+
                         for i in location:
                             location[i] = float("{:.2f}".format(location[i] * zoom))
                         page.screenshot(
@@ -269,11 +281,13 @@ def get_screenshots_of_reddit_posts(reddit_object: dict, screenshot_num: int):
                             path=f"assets/temp/{reddit_id}/png/comment_{idx}.png",
                         )
                     else:
-                        page.locator(
-                            f"#t1_{comment['comment_id']}-comment-rtjson-content"
-                        ).screenshot(
-                            path=f"assets/temp/{reddit_id}/png/comment_{idx}.png"
+                        for i in location:
+                            location[i] = float("{:.2f}".format(location[i]))
+                        page.screenshot(
+                            clip=location,
+                            path=f"assets/temp/{reddit_id}/png/comment_{idx}.png",
                         )
+
                 except TimeoutError:
                     del reddit_object["comments"]
                     screenshot_num += 1
@@ -284,3 +298,14 @@ def get_screenshots_of_reddit_posts(reddit_object: dict, screenshot_num: int):
         browser.close()
 
     print_substep("Screenshots downloaded Successfully.", style="bold green")
+
+
+def modify_bounding_box(bounding_box, padding=50, xwidth=2, xheight=4):
+    # Add some padding to the bounding box to include surrounding content
+    screenshot_region = {
+        "x": bounding_box["x"] - padding,
+        "y": bounding_box["y"] - padding,
+        "width": bounding_box["width"] + (xwidth * padding),
+        "height": bounding_box["height"] + (xheight * padding),
+    }
+    return screenshot_region
