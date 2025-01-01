@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import json
 import math
 import sys
 from os import name
@@ -9,7 +10,7 @@ from typing import NoReturn
 from prawcore import ResponseException
 
 from reddit.subreddit import get_subreddit_threads
-from utils import settings
+from utils import settings, subreddit
 from utils.cleanup import cleanup
 from utils.console import print_markdown, print_step, print_substep
 from utils.ffmpeg_install import ffmpeg_install
@@ -23,6 +24,7 @@ from video_creation.background import (
 from video_creation.final_video import make_final_video
 from video_creation.screenshot_downloader import get_screenshots_of_reddit_posts
 from video_creation.voices import save_text_to_mp3
+from uploads import tiktok,youtube
 
 __VERSION__ = "3.3.0"
 
@@ -56,6 +58,29 @@ def main(POST_ID=None) -> None:
     download_background_audio(bg_config["audio"])
     chop_background(bg_config, length, reddit_object)
     make_final_video(number_of_comments, length, reddit_object, bg_config)
+
+    # uploads
+    viddata='./video_creation/data/videos.json'
+    with open(viddata, 'r') as f:
+        data = json.load(f)
+
+    # Now you can use the data
+    title=data[-1]['reddit_title']
+    filename=data[-1]['filename']
+    subreddit=data[-1]['subreddit']
+    VIDEO_FILE_PATH = f"./results/{subreddit}/{filename}"
+    
+    # youtube upload
+    print_step("Uploading to youtube...")
+    TITLE = title
+    DESCRIPTION = title
+    CATEGORY_ID = '24'  # 24 = Entertainment
+    TAGS = ['reddit', 'jokes', 'epic', 'viral']
+    vid_id=youtube.upload_video(VIDEO_FILE_PATH,TITLE,DESCRIPTION,CATEGORY_ID,TAGS)
+
+    # tiktok upload
+    print_step("Uploading to tiktok...")
+    tiktok.upload_to_tiktok(VIDEO_FILE_PATH)
 
 
 def run_many(times) -> None:
